@@ -26,7 +26,7 @@
    ```
 2. 打開 Chrome 瀏覽器並進入 chrome://extensions/。
 3. 啟用 "開發者模式"。
-4. 點擊 "載入未打包的擴展功能"，選擇下載的 bookmark-checker 文件夾。
+4. 點擊 "載入未打包的擴展功能"，選擇下載的 BC-main 文件夾。
 
 ## GitHub
 查看項目源碼 https://github.com/lovemidog001/BC
