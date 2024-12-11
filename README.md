@@ -32,7 +32,7 @@
 查看項目源碼 https://github.com/lovemidog001/BC
 
 ## 插件結構
-bookmark-checker/
+bookmark/
 ├── background.js  // 後台腳本，處理按鈕觸發的檢查邏輯
 ├── content.js     // 內容腳本，用於頁面內容的操作
 ├── popup/
@@ -52,7 +52,7 @@ bookmark-checker/
 你可以選擇查看失效書籤的詳細信息或直接刪除失效的書籤。
 
 ## 開發者
-[lovemidog001]
+lovemidog001
 
 ## 貢獻
 歡迎任何形式的貢獻！如果你有任何建議、問題或錯誤修復，請：
