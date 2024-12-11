@@ -22,7 +22,7 @@
 
 1. **克隆或下載這個項目**：
    ```bash
-   git clone https://github.com/your-username/bookmark-checker.git
+   git clone https://github.com/lovemidog001/BC.git
    ```
 2. 打開 Chrome 瀏覽器並進入 chrome://extensions/。
 3. 啟用 "開發者模式"。
