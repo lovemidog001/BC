@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bookmark Checker</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="popup-content">
+    <h1>Bookmark Manager</h1>
+
+    <div id="invalid-bookmarks">
+      <h2>Invalid Bookmarks</h2>
+      <div id="invalid-list"></div>
+    </div>
+
+    <div id="options">
+      <div class="button-container">
+        <button id="check-bookmarks-btn">Check Bookmarks</button>
+      </div>
+      <div id="progress-bar">
+        <div id="progress-fill"></div>
+      </div>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
