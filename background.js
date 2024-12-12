@@ -167,6 +167,79 @@ function updateProgress(progress) {
   });
 }
 
+// 備份書籤
+async function backupBookmarks() {
+  try {
+    const bookmarks = await chrome.bookmarks.getTree();
+    
+    // 將數據轉換為base64的輔助函數
+    function arrayBufferToBase64(buffer) {
+      let binary = '';
+      const bytes = new Uint8Array(buffer);
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return btoa(binary);
+    }
+    
+    // 將書籤轉換為HTML格式
+    function bookmarksToHTML(nodes, level = 0) {
+      let html = '';
+      const indent = '    '.repeat(level);
+      
+      for (const node of nodes) {
+        if (node.url) {
+          // 如果沒有標題，使用 "未命名" 作為標題
+          const title = node.title.trim() || "未命名";
+          html += `${indent}<DT><A HREF="${node.url}">${title}</A>\n`;
+        } else {
+          // 資料夾標題，如果為空則使用 "未命名資料夾"
+          const folderTitle = node.title.trim() || "未命名資料夾";
+          html += `${indent}<DT><H3>${folderTitle}</H3>\n`;
+          html += `${indent}<DL><p>\n`;
+          if (node.children) {
+            html += bookmarksToHTML(node.children, level + 1);
+          }
+          html += `${indent}</DL><p>\n`;
+        }
+      }
+      return html;
+    }
+
+    const htmlContent = 
+`<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<!-- This is an automatically generated file.
+     It will be read and overwritten.
+     DO NOT EDIT! -->
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<TITLE>Bookmarks</TITLE>
+<H1>Bookmarks</H1>
+<DL><p>
+${bookmarksToHTML(bookmarks)}
+</DL><p>`;
+
+    const encoder = new TextEncoder();
+    const encodedData = encoder.encode(htmlContent);
+    const base64Data = arrayBufferToBase64(encodedData);
+    const dataUrl = `data:text/html;base64,${base64Data}`;
+    
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `bookmarks-backup-${timestamp}.html`;
+    
+    await chrome.downloads.download({
+      url: dataUrl,
+      filename: filename,
+      saveAs: true
+    });
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Backup failed:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 // 監聽消息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log(`Received message: ${request.action}`);
@@ -197,6 +270,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             chrome.runtime.sendMessage({ action: 'bookmarksUpdated' });
           });
         });
+      });
+      break;
+
+    case 'backupBookmarks':
+      backupBookmarks().then(sendResponse);
+      break;
+      
+    case 'confirmCleanup':
+      backupBookmarks().then(backupResult => {
+        if (backupResult.success) {
+          // 執行清理操作
+          chrome.storage.local.get('invalidBookmarks', async (data) => {
+            const { invalidBookmarks } = data;
+            for (const bookmark of invalidBookmarks) {
+              await chrome.bookmarks.remove(bookmark.id);
+            }
+            chrome.storage.local.set({ invalidBookmarks: [] });
+            sendResponse({ success: true });
+          });
+        } else {
+          sendResponse({ 
+            success: false, 
+            error: '備份失敗，清理操作已取消' 
+          });
+        }
       });
       break;
   }

@@ -4,6 +4,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const stopCheckBtn = document.getElementById('stop-check-btn');
   const invalidList = document.getElementById('invalid-list');
   const progressFill = document.getElementById('progress-fill');
+  const cleanupBtn = document.getElementById('cleanup-btn');
+  const backupBtn = document.getElementById('backup-btn');
 
   let isChecking = false;
 
@@ -168,4 +170,29 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     console.error('Some elements are missing in the popup HTML');
   }
+
+  // 備份功能
+  backupBtn.addEventListener('click', () => {
+    chrome.runtime.sendMessage({ action: 'backupBookmarks' }, (response) => {
+      if (response.success) {
+        alert('書籤備份成功！');
+      } else {
+        alert('備份失敗：' + response.error);
+      }
+    });
+  });
+  
+  // 清理功能
+  cleanupBtn.addEventListener('click', () => {
+    if (confirm('是否要清理失效書籤？建議先進行備份。\n要現在進行備份嗎？')) {
+      chrome.runtime.sendMessage({ action: 'confirmCleanup' }, (response) => {
+        if (response.success) {
+          alert('清理完成！');
+          displayInvalidBookmarks([]); // 清空列表
+        } else {
+          alert('清理失敗：' + response.error);
+        }
+      });
+    }
+  });
 });
