@@ -5,23 +5,40 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bookmark Checker</title>
   <link rel="stylesheet" href="popup.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 <body>
   <div id="popup-content">
-    <h1>Bookmark Manager</h1>
+    <div class="header">
+      <i class="material-icons">bookmarks</i>
+      <h1>書籤管理器</h1>
+    </div>
 
     <div id="invalid-bookmarks">
-      <h2>Invalid Bookmarks</h2>
+      <div class="section-header">
+        <i class="material-icons">error_outline</i>
+        <h2>失效的書籤</h2>
+      </div>
       <div id="invalid-list"></div>
     </div>
 
-    <div id="options">
-      <div class="button-container">
-        <button id="check-bookmarks-btn">Check Bookmarks</button>
-      </div>
+    <div class="progress-container">
       <div id="progress-bar">
         <div id="progress-fill"></div>
       </div>
+      <span class="progress-text">0%</span>
+    </div>
+
+    <div class="button-container">
+      <button id="check-bookmarks-btn" class="action-btn primary">
+        <i class="material-icons">play_arrow</i>
+        開始檢查
+      </button>
+      <button id="stop-check-btn" class="action-btn danger" disabled>
+        <i class="material-icons">stop</i>
+        停止檢查
+      </button>
     </div>
   </div>
   <script src="popup.js"></script>
