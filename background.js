@@ -1,4 +1,5 @@
 let isChecking = false;
+let checkController = null;
 
 // 初始化
 chrome.runtime.onInstalled.addListener(() => {
@@ -11,126 +12,140 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-// 檢查 URL 是否有效
+/**
+ * 檢查 URL 是否有效
+ * 優化點：增加 User-Agent，處理更多狀態碼，支持超時
+ */
 async function checkUrl(url) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 增加到 15 秒
+  
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-    
-    const response = await fetch(url, {
+    // 優先使用 HEAD 請求以節省流量
+    let response = await fetch(url, {
       method: 'HEAD',
       signal: controller.signal,
-      redirect: 'follow',
-      mode: 'no-cors'
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
     });
     
+    // 如果伺服器不支援 HEAD，嘗試 GET 但不下載 Body
+    if (response.status === 405 || response.status === 403 || response.status === 501) {
+      response = await fetch(url, {
+        method: 'GET',
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
+    }
+
     clearTimeout(timeoutId);
 
-    if (response.status === 404) {
-      return { valid: false, reason: '頁面不存在 (404)' };
-    } else if (response.status >= 400) {
-      return { valid: false, reason: `伺服器錯誤 (${response.status})` };
-    } else if ([301, 302].includes(response.status)) {
-      return { valid: false, reason: '頁面已被重定向' };
+    if (response.ok) {
+      return { valid: true };
     }
-    return { valid: true };
+
+    // 細化錯誤類型
+    switch (response.status) {
+      case 404: return { valid: false, reason: '頁面不存在 (404)' };
+      case 410: return { valid: false, reason: '頁面已永久移除 (410)' };
+      case 500: case 502: case 503: case 504:
+        return { valid: false, reason: `伺服器故障 (${response.status})` };
+      default:
+        return { valid: false, reason: `請求失敗 (${response.status})` };
+    }
   } catch (error) {
+    clearTimeout(timeoutId);
     if (error.name === 'AbortError') {
       return { valid: false, reason: '連接超時' };
-    } else if (error.message.includes('ECONNREFUSED')) {
-      return { valid: false, reason: '連接被拒絕' };
-    } else if (error.message.includes('ENOTFOUND')) {
-      return { valid: false, reason: '域名無法解析' };
     }
-    return { valid: false, reason: `連接錯誤: ${error.message}` };
+    const msg = error.message.toLowerCase();
+    if (msg.includes('dns') || msg.includes('not_found')) {
+      return { valid: false, reason: '域名無法解析' };
+    } else if (msg.includes('refused')) {
+      return { valid: false, reason: '連接被拒絕' };
+    }
+    return { valid: false, reason: `網絡錯誤: ${error.message}` };
   }
 }
 
-// 開始檢查書籤
+/**
+ * 開始檢查書籤
+ */
 async function startCheckBookmarks() {
   if (isChecking) return;
   
   isChecking = true;
+  checkController = new AbortController();
   
   try {
     const tree = await chrome.bookmarks.getTree();
-    const bookmarks = tree[0].children;
-    await checkAndUpdateBookmarks(bookmarks);
+    await processBookmarks(tree);
   } catch (error) {
     console.error('Error starting bookmark check:', error);
+    isChecking = false;
   }
 }
 
-// 檢查並更新書籤
-async function checkAndUpdateBookmarks(bookmarks) {
-  const invalidBookmarks = [];
-  let totalBookmarks = 0;
-  let checkedBookmarks = 0;
-
-  // 計算總書籤數
-  function countBookmarks(items) {
-    for (const item of items) {
-      if (item.url && (item.url.startsWith('http://') || item.url.startsWith('https://'))) {
-        totalBookmarks++;
+/**
+ * 處理並檢查書籤列表
+ */
+async function processBookmarks(tree) {
+  const flatBookmarks = [];
+  
+  // 1. 扁平化書籤樹並記錄路徑
+  function flatten(nodes, path = '') {
+    for (const node of nodes) {
+      const currentPath = path ? `${path} > ${node.title}` : node.title;
+      if (node.url && (node.url.startsWith('http'))) {
+        flatBookmarks.push({
+          id: node.id,
+          title: node.title || '未命名',
+          url: node.url,
+          path: path // 記錄父級路徑
+        });
       }
-      if (item.children) {
-        countBookmarks(item.children);
+      if (node.children) {
+        flatten(node.children, currentPath);
       }
     }
   }
-  countBookmarks(bookmarks);
-  console.log(`Total bookmarks to check: ${totalBookmarks}`);
-
-  // 使用並發限制的檢查函數
-  async function checkBookmarksWithLimit(items, concurrency = 5) {
-    const queue = [];
-    
-    async function processBookmark(bookmark) {
-      if (!isChecking) return;
-      
-      if (bookmark.url && (bookmark.url.startsWith('http://') || bookmark.url.startsWith('https://'))) {
-        checkedBookmarks++;
-        updateProgress(Math.round((checkedBookmarks / totalBookmarks) * 100));
-
-        console.log(`Checking: ${bookmark.title}`);
+  
+  flatten(tree[0].children);
+  
+  const total = flatBookmarks.length;
+  const invalidBookmarks = [];
+  let checked = 0;
+  const CONCURRENCY = 5;
+  
+  // 2. 使用隊列進行並發檢查
+  const queue = [...flatBookmarks];
+  const workers = Array(Math.min(CONCURRENCY, queue.length)).fill(null).map(async () => {
+    while (queue.length > 0 && isChecking) {
+      const bookmark = queue.shift();
+      try {
         const result = await checkUrl(bookmark.url);
-        
         if (!result.valid) {
-          console.log(`Invalid bookmark found: ${bookmark.url} - ${result.reason}`);
           invalidBookmarks.push({
-            id: bookmark.id,
-            title: bookmark.title,
-            url: bookmark.url,
+            ...bookmark,
             reason: result.reason
           });
         }
-      }
-
-      if (bookmark.children) {
-        await checkBookmarksWithLimit(bookmark.children, concurrency);
+      } catch (e) {
+        console.error(`Failed to check ${bookmark.url}`, e);
+      } finally {
+        checked++;
+        updateProgress(Math.round((checked / total) * 100));
       }
     }
+  });
 
-    // 並發處理書籤
-    for (const bookmark of items) {
-      if (queue.length >= concurrency) {
-        await Promise.race(queue);
-      }
-      
-      const promise = processBookmark(bookmark).then(() => {
-        queue.splice(queue.indexOf(promise), 1);
-      });
-      
-      queue.push(promise);
-    }
+  await Promise.all(workers);
 
-    await Promise.all(queue);
-  }
-
-  try {
-    await checkBookmarksWithLimit(bookmarks);
-    
-    // 保存結果
+  // 3. 儲存結果
+  if (isChecking) {
     await chrome.storage.local.set({
       bookmarksChecked: true,
       invalidBookmarks,
@@ -139,21 +154,11 @@ async function checkAndUpdateBookmarks(bookmarks) {
       lastCheckTime: new Date().toISOString()
     });
 
-    console.log(`Check complete. Found ${invalidBookmarks.length} invalid bookmarks`);
-    chrome.runtime.sendMessage({
-      action: 'bookmarksUpdated',
-      invalidBookmarks
-    });
+    chrome.runtime.sendMessage({ action: 'bookmarksUpdated', invalidBookmarks });
     chrome.runtime.sendMessage({ action: 'checkComplete' });
-  } catch (error) {
-    console.error('Error during bookmark check:', error);
-    chrome.runtime.sendMessage({
-      action: 'checkError',
-      error: error.message
-    });
-  } finally {
-    isChecking = false;
   }
+  
+  isChecking = false;
 }
 
 // 更新進度
@@ -162,142 +167,118 @@ function updateProgress(progress) {
   chrome.runtime.sendMessage({
     action: 'updateProgress',
     progress: progress
-  }).catch(error => {
-    console.log('Error sending progress update:', error.message);
-  });
+  }).catch(() => {}); // 忽略 popup 關閉時的錯誤
 }
 
-// 備份書籤
+/**
+ * 備份書籤為 HTML (NETSCAPE 格式)
+ */
 async function backupBookmarks() {
   try {
-    const bookmarks = await chrome.bookmarks.getTree();
+    const tree = await chrome.bookmarks.getTree();
     
-    // 將數據轉換為base64的輔助函數
-    function arrayBufferToBase64(buffer) {
-      let binary = '';
-      const bytes = new Uint8Array(buffer);
-      const len = bytes.byteLength;
-      for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      return btoa(binary);
-    }
-    
-    // 將書籤轉換為HTML格式
-    function bookmarksToHTML(nodes, level = 0) {
+    function nodesToHTML(nodes, level = 0) {
       let html = '';
       const indent = '    '.repeat(level);
       
       for (const node of nodes) {
         if (node.url) {
-          // 如果沒有標題，使用 "未命名" 作為標題
-          const title = node.title.trim() || "未命名";
-          html += `${indent}<DT><A HREF="${node.url}">${title}</A>\n`;
-        } else {
-          // 資料夾標題，如果為空則使用 "未命名資料夾"
-          const folderTitle = node.title.trim() || "未命名資料夾";
-          html += `${indent}<DT><H3>${folderTitle}</H3>\n`;
+          const title = (node.title || '未命名').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          const addDate = node.dateAdded ? Math.floor(node.dateAdded / 1000) : '';
+          html += `${indent}<DT><A HREF="${node.url}" ADD_DATE="${addDate}">${title}</A>\n`;
+        } else if (node.children) {
+          const title = (node.title || '新資料夾').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          const addDate = node.dateAdded ? Math.floor(node.dateAdded / 1000) : '';
+          html += `${indent}<DT><H3 ADD_DATE="${addDate}">${title}</H3>\n`;
           html += `${indent}<DL><p>\n`;
-          if (node.children) {
-            html += bookmarksToHTML(node.children, level + 1);
-          }
+          html += nodesToHTML(node.children, level + 1);
           html += `${indent}</DL><p>\n`;
         }
       }
       return html;
     }
 
-    const htmlContent = 
-`<!DOCTYPE NETSCAPE-Bookmark-file-1>
-<!-- This is an automatically generated file.
-     It will be read and overwritten.
-     DO NOT EDIT! -->
+    const htmlContent = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<!-- This is an automatically generated file. -->
 <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
 <TITLE>Bookmarks</TITLE>
 <H1>Bookmarks</H1>
 <DL><p>
-${bookmarksToHTML(bookmarks)}
+${nodesToHTML(tree[0].children)}
 </DL><p>`;
 
-    const encoder = new TextEncoder();
-    const encodedData = encoder.encode(htmlContent);
-    const base64Data = arrayBufferToBase64(encodedData);
-    const dataUrl = `data:text/html;base64,${base64Data}`;
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const reader = new FileReader();
     
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `bookmarks-backup-${timestamp}.html`;
-    
-    await chrome.downloads.download({
-      url: dataUrl,
-      filename: filename,
-      saveAs: true
+    return new Promise((resolve) => {
+      reader.onloadend = async () => {
+        const timestamp = new Date().toISOString().slice(0, 10);
+        await chrome.downloads.download({
+          url: reader.result,
+          filename: `bookmarks_backup_${timestamp}.html`,
+          saveAs: true
+        });
+        resolve({ success: true });
+      };
+      reader.readAsDataURL(blob);
     });
-    
-    return { success: true };
   } catch (error) {
     console.error('Backup failed:', error);
     return { success: false, error: error.message };
   }
 }
 
-// 監聽消息
+// 消息監聽
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log(`Received message: ${request.action}`);
-  
   switch (request.action) {
     case 'checkBookmarks':
-      if (!isChecking) {
-        startCheckBookmarks();
-        sendResponse({ success: true, message: 'Check started' });
-      } else {
-        sendResponse({ success: false, message: 'Check already in progress' });
-      }
+      startCheckBookmarks();
+      sendResponse({ success: true });
       break;
-
     case 'stopBookmarks':
       isChecking = false;
       sendResponse({ success: true });
       break;
-
     case 'removeInvalidBookmark':
-      chrome.bookmarks.remove(request.bookmarkId, () => {
-        chrome.storage.local.get('invalidBookmarks', (data) => {
-          const updatedInvalidBookmarks = data.invalidBookmarks.filter(
-            bookmark => bookmark.id !== request.bookmarkId
-          );
-          chrome.storage.local.set({ invalidBookmarks: updatedInvalidBookmarks }, () => {
-            sendResponse({ success: true });
-            chrome.runtime.sendMessage({ action: 'bookmarksUpdated' });
-          });
-        });
+      chrome.bookmarks.remove(request.bookmarkId, async () => {
+        const data = await chrome.storage.local.get('invalidBookmarks');
+        const updated = data.invalidBookmarks.filter(b => b.id !== request.bookmarkId);
+        await chrome.storage.local.set({ invalidBookmarks: updated });
+        chrome.runtime.sendMessage({ action: 'bookmarksUpdated' });
+        sendResponse({ success: true });
       });
       break;
-
+    case 'removeMultipleBookmarks':
+      (async () => {
+        for (const id of request.bookmarkIds) {
+          try { await chrome.bookmarks.remove(id); } catch(e) {}
+        }
+        const data = await chrome.storage.local.get('invalidBookmarks');
+        const updated = data.invalidBookmarks.filter(b => !request.bookmarkIds.includes(b.id));
+        await chrome.storage.local.set({ invalidBookmarks: updated });
+        chrome.runtime.sendMessage({ action: 'bookmarksUpdated' });
+        sendResponse({ success: true });
+      })();
+      break;
     case 'backupBookmarks':
       backupBookmarks().then(sendResponse);
       break;
-      
     case 'confirmCleanup':
-      backupBookmarks().then(backupResult => {
-        if (backupResult.success) {
-          // 執行清理操作
-          chrome.storage.local.get('invalidBookmarks', async (data) => {
-            const { invalidBookmarks } = data;
-            for (const bookmark of invalidBookmarks) {
-              await chrome.bookmarks.remove(bookmark.id);
-            }
-            chrome.storage.local.set({ invalidBookmarks: [] });
-            sendResponse({ success: true });
-          });
+      (async () => {
+        const backup = await backupBookmarks();
+        if (backup.success) {
+          const data = await chrome.storage.local.get('invalidBookmarks');
+          for (const b of data.invalidBookmarks) {
+            try { await chrome.bookmarks.remove(b.id); } catch(e) {}
+          }
+          await chrome.storage.local.set({ invalidBookmarks: [] });
+          chrome.runtime.sendMessage({ action: 'bookmarksUpdated' });
+          sendResponse({ success: true });
         } else {
-          sendResponse({ 
-            success: false, 
-            error: '備份失敗，清理操作已取消' 
-          });
+          sendResponse({ success: false, error: '備份失敗' });
         }
-      });
+      })();
       break;
   }
-  
   return true;
 });
