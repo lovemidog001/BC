@@ -68,10 +68,3 @@
 - **數據持久化**：使用 `chrome.storage.local` 同步檢查進度，popup 關閉後背景任務持續執行。
 - **標準兼容**：備份功能生成的 HTML 嚴格遵循 Netscape 格式，支持各種瀏覽器匯入。
 
----
-
-<div align="center">
-  
-**由 Gemini CLI 輔助優化，為您的書籤保駕護航**
-
-</div>
