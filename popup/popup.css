@@ -1,239 +1,301 @@
+:root {
+  --primary: #3b82f6;
+  --primary-dark: #2563eb;
+  --danger: #ef4444;
+  --danger-dark: #dc2626;
+  --warning: #f59e0b;
+  --secondary: #64748b;
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  --border: #e2e8f0;
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --item-bg: #fef2f2;
+}
+
 body {
-  width: 380px;
-  font-family: 'Inter', sans-serif;
+  width: 400px;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   margin: 0;
-  padding: 16px;
-  box-sizing: border-box;
-  background-color: #f8fafc;
+  background-color: var(--bg-main);
+  color: var(--text-main);
 }
 
 #popup-content {
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  background-color: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  gap: 16px;
 }
 
 .header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 12px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border);
 }
 
-.header i {
+.title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title-wrapper i {
+  color: var(--primary);
   font-size: 24px;
-  color: #3b82f6;
 }
 
 h1 {
-  font-size: 20px;
-  color: #1e293b;
+  font-size: 18px;
   margin: 0;
   font-weight: 600;
 }
 
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
+.stats {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
-.section-header i {
-  color: #ef4444;
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.left-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.left-head i {
+  color: var(--danger);
+  font-size: 20px;
 }
 
 h2 {
-  font-size: 16px;
-  color: #475569;
+  font-size: 14px;
   margin: 0;
   font-weight: 500;
+  color: var(--secondary);
 }
 
 #invalid-bookmarks {
-  background-color: #fff;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-}
-
-#invalid-list {
-  max-height: 300px;
-  overflow-y: auto;
+  background: var(--bg-card);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+  max-height: 350px;
   padding: 12px;
 }
 
+#invalid-list {
+  overflow-y: auto;
+  flex: 1;
+}
+
 .bookmark-item {
-  position: relative;
-  padding: 16px;
-  background-color: #fef2f2;
-  margin: 8px 0;
-  border-radius: 8px;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  transition: transform 0.2s ease;
+  gap: 10px;
+  padding: 10px;
+  background: var(--item-bg);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .bookmark-item:hover {
-  transform: translateX(4px);
+  border-color: #fecaca;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
-.bookmark-item p {
-  margin: 0;
-  font-weight: 500;
-  color: #1e293b;
+.item-checkbox {
+  margin-top: 3px;
 }
 
-.bookmark-item a {
-  color: #64748b;
-  text-decoration: none;
+.item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-title {
   font-size: 14px;
-  word-break: break-all;
-  transition: color 0.2s ease;
+  font-weight: 500;
+  margin: 0 0 4px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.bookmark-item a:hover {
-  color: #3b82f6;
-}
-
-.bookmark-item button {
-  align-self: flex-end;
-  background-color: #fee2e2;
-  color: #ef4444;
-  border: 1px solid #fecaca;
-  padding: 6px 12px;
+.item-url {
   font-size: 12px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
+  color: var(--text-muted);
+  text-decoration: none;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.bookmark-item button:hover {
-  background-color: #ef4444;
-  color: white;
-  border-color: #ef4444;
+.item-path {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 4px;
+  font-style: italic;
 }
 
-.button-container {
+.item-reason {
+  font-size: 11px;
+  color: var(--danger);
+  margin-top: 4px;
+}
+
+.item-actions {
   display: flex;
+  flex-direction: column;
   justify-content: center;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.icon-btn:hover {
+  background: #fee2e2;
+  color: var(--danger);
+}
+
+/* 底部控制區 */
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.progress-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+#progress-fill {
+  width: 0%;
+  height: 100%;
+  background: var(--primary);
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 12px;
+  min-width: 30px;
+  color: var(--text-muted);
+}
+
+.button-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
-  margin: 16px 0;
 }
 
 .action-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 10px;
   border: none;
   border-radius: 8px;
-  cursor: pointer;
   font-weight: 500;
-  transition: all 0.2s ease;
-  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 13px;
 }
+
+.action-btn i { font-size: 18px; }
 
 .action-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.action-btn.primary {
-  background-color: #3b82f6;
-  color: white;
-}
+.primary { background: var(--primary); color: white; }
+.primary:hover:not(:disabled) { background: var(--primary-dark); }
 
-.action-btn.primary:hover:not(:disabled) {
-  background-color: #2563eb;
-  transform: translateY(-1px);
-}
+.danger { background: var(--danger); color: white; }
+.danger:hover:not(:disabled) { background: var(--danger-dark); }
 
-.action-btn.warning {
-  background-color: #f59e0b;
-  color: white;
-}
+.warning { background: var(--warning); color: white; }
+.warning:hover:not(:disabled) { opacity: 0.9; }
 
-.action-btn.warning:hover:not(:disabled) {
-  background-color: #d97706;
-  transform: translateY(-1px);
-}
+.secondary { background: var(--secondary); color: white; }
+.secondary:hover:not(:disabled) { opacity: 0.9; }
 
-.action-btn.danger {
-  background-color: #ef4444;
-  color: white;
-}
-
-.action-btn.danger:hover:not(:disabled) {
-  background-color: #dc2626;
-  transform: translateY(-1px);
-}
-
-.action-btn:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-#progress-bar {
-  flex: 1;
-  height: 8px;
-  background-color: #e2e8f0;
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-#progress-fill {
-  height: 100%;
-  background-color: #3b82f6;
-  width: 0;
-  transition: width 0.3s ease;
-  border-radius: 999px;
-}
-
-.progress-container {
+.bulk-actions {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.progress-text {
-  font-size: 14px;
-  color: #64748b;
-  min-width: 40px;
-}
-
-/* 自定義滾動條 */
-#invalid-list::-webkit-scrollbar {
-  width: 8px;
-}
-
-#invalid-list::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 4px;
-}
-
-#invalid-list::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-
-#invalid-list::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-.no-bookmarks {
-  padding: 20px;
-  text-align: center;
-  color: #64748b;
-  font-style: italic;
-}
-
-.error-reason {
-  display: block;
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 12px;
-  color: #ef4444;
-  margin-top: 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.text-btn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.text-btn.danger { color: var(--danger); }
+.text-btn.danger:hover { background: #fee2e2; }
+
+/* 滾動條 */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+.no-bookmarks, .loading-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 13px;
 }

@@ -11,42 +11,64 @@
 <body>
   <div id="popup-content">
     <div class="header">
-      <i class="material-icons">bookmarks</i>
-      <h1>書籤管理器</h1>
+      <div class="title-wrapper">
+        <i class="material-icons">bookmarks</i>
+        <h1>書籤管理器</h1>
+      </div>
+      <div class="stats" id="stats-info"></div>
     </div>
 
     <div id="invalid-bookmarks">
       <div class="section-header">
-        <i class="material-icons">error_outline</i>
-        <h2>失效的書籤</h2>
+        <div class="left-head">
+          <i class="material-icons">error_outline</i>
+          <h2>失效的書籤</h2>
+        </div>
+        <div class="bulk-actions" id="bulk-actions-container" style="display: none;">
+          <label class="checkbox-container">
+            <input type="checkbox" id="select-all">
+            <span class="checkmark"></span>
+            全選
+          </label>
+          <button id="bulk-delete-btn" class="text-btn danger">
+            <i class="material-icons">delete_sweep</i>
+            刪除選中項
+          </button>
+        </div>
       </div>
-      <div id="invalid-list"></div>
+      <div id="invalid-list">
+        <div class="loading-state">
+          <p>正在初始化...</p>
+        </div>
+      </div>
     </div>
 
-    <div class="progress-container">
-      <div id="progress-bar">
-        <div id="progress-fill"></div>
+    <div class="controls">
+      <div class="progress-container">
+        <div id="progress-bar">
+          <div id="progress-fill"></div>
+        </div>
+        <span class="progress-text">0%</span>
       </div>
-      <span class="progress-text">0%</span>
-    </div>
 
-    <div class="button-container">
-      <button id="check-bookmarks-btn" class="action-btn primary">
-        <i class="material-icons">play_arrow</i>
-        開始檢查
-      </button>
-      <button id="stop-check-btn" class="action-btn danger" disabled>
-        <i class="material-icons">stop</i>
-        停止檢查
-      </button>
-      <button id="cleanup-btn" class="action-btn warning">
-        <i class="material-icons">cleaning_services</i>
-        清理失效書籤
-      </button>
-      <button id="backup-btn" class="action-btn primary">
-        <i class="material-icons">backup</i>
-        備份書籤
-      </button>
+      <div class="button-grid">
+        <button id="check-bookmarks-btn" class="action-btn primary">
+          <i class="material-icons">search</i>
+          開始檢查
+        </button>
+        <button id="stop-check-btn" class="action-btn danger" disabled>
+          <i class="material-icons">stop</i>
+          停止
+        </button>
+        <button id="backup-btn" class="action-btn secondary">
+          <i class="material-icons">backup</i>
+          備份
+        </button>
+        <button id="cleanup-btn" class="action-btn warning">
+          <i class="material-icons">auto_fix_high</i>
+          自動清理
+        </button>
+      </div>
     </div>
   </div>
   <script src="popup.js"></script>
